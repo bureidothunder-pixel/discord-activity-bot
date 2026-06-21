@@ -1,4 +1,5 @@
-import osfrom flask import Flask
+import os
+from flask import Flask
 from threading import Thread
 import sqlite3
 import discord
@@ -245,15 +246,17 @@ def home():
 
 
 def run_web():
+    port = int(os.environ.get("PORT", 10000))
     app.run(
         host="0.0.0.0",
-        port=10000
-    )if TOKEN is None:
+        port=port
+    )
+
+
+if TOKEN is None:
     print("TOKENが設定されていません。.envを確認してください。")
 else:
     web_thread = Thread(target=run_web)
     web_thread.start()
-web_thread = Thread(target=run_web)
-web_thread.start()
 
-bot.run(TOKEN)
+    bot.run(TOKEN)

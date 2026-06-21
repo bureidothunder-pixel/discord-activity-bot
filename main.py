@@ -1,4 +1,5 @@
-import os
+import osfrom flask import Flask
+from threading import Thread
 import sqlite3
 import discord
 from datetime import datetime, timedelta, timezone
@@ -236,8 +237,23 @@ async def check(ctx):
 # =====================
 # BOT起動
 # =====================
+app = Flask(__name__)
 
-if TOKEN is None:
+@app.route("/")
+def home():
+    return "Discord Bot Running"
+
+
+def run_web():
+    app.run(
+        host="0.0.0.0",
+        port=10000
+    )if TOKEN is None:
     print("TOKENが設定されていません。.envを確認してください。")
 else:
-    bot.run(TOKEN)
+    web_thread = Thread(target=run_web)
+    web_thread.start()
+web_thread = Thread(target=run_web)
+web_thread.start()
+
+bot.run(TOKEN)

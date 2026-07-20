@@ -233,7 +233,53 @@ async def check_inactive_users():
 async def check(ctx):
     await check_inactive_users()
     await ctx.send("非アクティブユーザー確認を実行しました。")
+@bot.command()
+@commands.has_permissions(administrator=True)
+async def inactive(ctx):
+    now = datetime.now(JST)
+    users = get_all_users()
 
+    inactive_users = []
+
+    for user_id, username, last_activity, warning_sent in users:
+        try:
+            last_activity_dt = datetime.fromisoformat(last_activity)
+            inactive_days = (now - last_activity_dt).days
+        except (TypeError, ValueError):
+            continue
+
+        if inactive_days < INACTIVE_DAYS:
+            continue
+
+        member = ctx.guild.get_member(user_id)
+
+        if member is None:
+            continue
+
+        if member.bot:
+            continue
+
+        if member.guild_permissions.administrator:
+            continue
+
+        status = "⚠️ 警告済み" if warning_sent else "未警告"
+
+        inactive_users.append(
+            (inactive_days, member.display_name, status)
+        )
+
+    if not inactive_users:
+        await ctx.send(f"現在、{INACTIVE_DAYS}日以上未活動のユーザーはいません。")
+        return
+
+    inactive_users.sort(reverse=True)
+
+    message = f"📋 {INACTIVE_DAYS}日以上未活動のユーザー\n\n"
+
+    for days, name, status in inactive_users:
+        message += f"・{name}：{days}日（{status}）\n"
+
+    await ctx.send(message)
 
 # =====================
 # BOT起動

@@ -229,13 +229,115 @@ async def check_inactive_users():
 # =====================
 
 @bot.command()
-@commands.has_permissions(administrator=True)
 async def check(ctx):
     await check_inactive_users()
     await ctx.send("非アクティブユーザー確認を実行しました。")
 @bot.command()
-@commands.has_permissions(administrator=True)
 async def inactive(ctx):
+    @bot.command()
+async def activity(ctx):
+    now = datetime.now(JST)
+    users = get_all_users()
+
+    activity_list = []
+
+    for user_id, username, last_activity, warning_sent in users:
+        member = ctx.guild.get_member(user_id)
+
+        # 現在のサーバーにいないユーザーは除外
+        if member is None:
+            continue
+
+        # BOTは除外
+        if member.bot:
+            continue
+
+        if not last_activity:
+            activity_list.append({
+                "name": member.display_name,
+                "days": None,
+                "last_date": "記録なし",
+                "status": "⚪ 活動記録なし"
+            })
+            continue
+
+        try:
+            last_activity_dt = datetime.fromisoformat(last_activity)
+            inactive_days = (now - last_activity_dt).days
+
+            if warning_sent:
+                status = "🚨 警告済み"
+            elif inactive_days >= INACTIVE_DAYS:
+                status = "🔴 警告対象"
+            elif inactive_days >= 20:
+                status = "🟡 まもなく30日"
+            else:
+                status = "🟢 活動中"
+
+            activity_list.append({
+                "name": member.display_name,
+                "days": inactive_days,
+                "last_date": last_activity_dt.strftime("%Y/%m/%d %H:%M"),
+                "status": status
+            })
+
+        except (TypeError, ValueError):
+            activity_list.append({
+                "name": member.display_name,
+                "days": None,
+                "last_date": "日時エラー",
+                "status": "⚪ 確認不可"
+            })
+
+    if not activity_list:
+        await ctx.send("表示できる活動データがありません。")
+        return
+
+    # 未活動日数が長い順に並べる
+    activity_list.sort(
+        key=lambda user: user["days"] if user["days"] is not None else -1,
+        reverse=True
+    )
+
+    lines = [
+        f"📋 メンバー活動状況",
+        f"確認日時：{now.strftime('%Y/%m/%d %H:%M')}",
+        ""
+    ]
+
+    for user in activity_list:
+        if user["days"] is None:
+            lines.append(
+                f"・{user['name']}\n"
+                f"　最終発言：{user['last_date']}\n"
+                f"　{user['status']}"
+            )
+        else:
+            lines.append(
+                f"・{user['name']}\n"
+                f"　最終発言：{user['last_date']}\n"
+                f"　経過日数：{user['days']}日\n"
+                f"　{user['status']}"
+            )
+
+    # Discordの文字数上限対策
+    messages = []
+    current_message = ""
+
+    for line in lines:
+        added_text = line + "\n"
+
+        if len(current_message) + len(added_text) > 1900:
+            messages.append(current_message)
+            current_message = added_text
+        else:
+            current_message += added_text
+
+    if current_message:
+        messages.append(current_message)
+
+    for message in messages:
+        await ctx.send(message)
     now = datetime.now(JST)
     users = get_all_users()
 
